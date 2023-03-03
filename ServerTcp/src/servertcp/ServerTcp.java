@@ -20,60 +20,65 @@ public class ServerTcp {
     /**
      * @param args the command line arguments
      */
-    private static LinkedList<ServerClient> clientList = new LinkedList<ServerClient>();
     private static long lastIndex = 0;
-    private static Timered tt = null;
-    private static Timer t = null;
-
-    /**
-     * @param args the command line arguments
-     */
+    private static RemoveClient tt = null;
+    private static Timer t = new Timer();
+    
     public static void main(String[] args) throws IOException, InterruptedException {
         try (// socket del server, in ascolto sulla porta 9999
                 // la differenza con la socket del client è che questa socket può restare in
                 // attesa di connessione (accept del TCP)
         ServerSocket ss = new ServerSocket(9999)) {
+            tt = new RemoveClient();
+            t.schedule(tt, 0, 100);
+
             while (true) {
                 // Creo la socket di connessione al client specifico
                 // per farlo metto la ServerSocket in attesa di richiesta di connessione
                 System.out.println("Server in attesa...");
                 Socket s = ss.accept();
                 System.out.println("Richiesta di connessione ricevuta da: " + s.getRemoteSocketAddress());
-                clientList.add(new ServerClient(s,clientList.getLast()));
-                long tmp = clientList.indexOf(clientList.getLast());
-                if (clientList.indexOf(clientList.getLast()) > 0) {
-                    for (ServerClient c : clientList) {
-                        c.sendMsg("started");
-                        String cl = "client:";
-                        for(ServerClient client : clientList){
-                            cl += client.getName();
-                        }
-                        c.sendMsg(cl);
+                tt.addClients(new ServerClient(s));
+                for (int i = 0; i < tt.getC().size(); i++) {
+                    tt.getC().get(i).sendMsg("started");
+                    String cl = "client:";
+                    for(ServerClient client : tt.getC()){
+                        client.otherClients = tt.getC();
+                        cl += client.getName();
                     }
+                    tt.getC().get(i).sendMsg(cl);
                 }
-                if (lastIndex != tmp) {
-                    for (ServerClient c : clientList) {
-                        c.updateOther(clientList.getLast());
-                    }
-                    lastIndex = tmp;
-                }
-                tt = new Timered();
-                t = new Timer();
-                t.schedule(tt, 0, 1000);
             }
         }
     }
     
-    private static class Timered extends TimerTask{
-        
-        public Timered(){
-            this.run();
+    private static class RemoveClient extends TimerTask{
+        private LinkedList<ServerClient> clientList = new LinkedList<ServerClient>();
+        private LinkedList<ServerClient> removable = new LinkedList<ServerClient>();
+
+        public RemoveClient(){}
+
+        public void addClients(ServerClient s){
+            this.clientList.add(s);
+        }
+
+        public void updateClients(LinkedList<ServerClient> s){
+            this.clientList = s;
+        }
+
+        public LinkedList<ServerClient> getC(){
+            return this.clientList;
         }
 
         @Override
-        public void run() {
-            
+        public void run(){
+            for (int i = 0; i < clientList.size(); i++) {
+                if(clientList.get(i).terminated()){
+                    removable.add(clientList.get(i));
+                }
+            }
+
+            clientList.removeAll(removable);
         }
-        
-    }    
+    }
 }

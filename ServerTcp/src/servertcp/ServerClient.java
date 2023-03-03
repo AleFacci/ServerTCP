@@ -26,9 +26,8 @@ public class ServerClient extends Thread{
     public BufferedReader in;
     public LinkedList<ServerClient> otherClients = new LinkedList<ServerClient>();
 
-    public ServerClient(Socket client,ServerClient other) throws IOException{
+    public ServerClient(Socket client) throws IOException{
         this.s = client;
-        updateOther(other);
         this.isr = new InputStreamReader(client.getInputStream());
         this.in = new BufferedReader(isr);
         this.out = new PrintWriter(client.getOutputStream(), true);
@@ -49,6 +48,10 @@ public class ServerClient extends Thread{
                 other.sendMsg(msg);
             }
         }
+    }
+
+    public boolean terminated(){
+        return termina;
     }
     //termina la sessione e chiude il client
     private void terminate() throws IOException{
